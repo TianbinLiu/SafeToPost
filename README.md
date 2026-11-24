@@ -61,7 +61,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map and [docs/PR
 - `docs/` — architecture and privacy notes
 - Releases — signed test APK (`v0.1.0`)
 
-The Android Studio project itself is kept with the course submission; this repository hosts the demo build and its documentation.
+The Android Studio project can be added to this repository as a follow-up; the module map in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the shipped build.
 
 ## Team
 
