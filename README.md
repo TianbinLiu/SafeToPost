@@ -58,7 +58,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map and [docs/PR
 
 ## Repository contents
 
-- `docs/` — architecture and privacy notes
+- `docs/ARCHITECTURE.md` — module map and pipeline
+- `docs/PRIVACY.md` — data-flow and permission notes
+- `docs/CODE_DOCUMENTATION.md` — full code documentation (project description, per-module implementation notes, build/run/reproduction steps, limitations)
 - Releases — signed test APK (`v0.1.0`)
 
 The Android Studio project can be added to this repository as a follow-up; the module map in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the shipped build.
