@@ -23,21 +23,40 @@ class MetadataReader(private val context: Context) {
                 val entries = mutableListOf<MetadataEntry>()
 
                 for (spec in ExifCatalog.specs) {
+                    // GPS is parsed from the APP1/TIFF block below: the platform reader
+                    // returns zeros for some camera files, so we do not trust it there.
+                    if (spec.tag == ExifInterface.TAG_GPS_LATITUDE ||
+                        spec.tag == ExifInterface.TAG_GPS_LONGITUDE
+                    ) continue
+
                     val raw = exif.getAttribute(spec.tag) ?: continue
-                    val value = when (spec.tag) {
-                        ExifInterface.TAG_GPS_LATITUDE ->
-                            CoordinateFormat.dms(raw, exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)) ?: raw
-                        ExifInterface.TAG_GPS_LONGITUDE ->
-                            CoordinateFormat.dms(raw, exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)) ?: raw
-                        else -> raw
-                    }
                     entries += MetadataEntry(
                         tag = spec.tag,
                         label = spec.label,
-                        value = ValueFormat.short(value),
+                        value = ValueFormat.short(raw),
                         source = AttributeSource.EXIF,
                         category = spec.category,
                         risk = spec.risk
+                    )
+                }
+
+                val gps = ExifGpsParser.parse(bytes, segments)
+                if (gps != null) {
+                    entries += MetadataEntry(
+                        tag = ExifInterface.TAG_GPS_LATITUDE,
+                        label = "GPS latitude",
+                        value = gps.latitude,
+                        source = AttributeSource.EXIF,
+                        category = LeakCategory.LOCATION,
+                        risk = Risk.HIGH
+                    )
+                    entries += MetadataEntry(
+                        tag = ExifInterface.TAG_GPS_LONGITUDE,
+                        label = "GPS longitude",
+                        value = gps.longitude,
+                        source = AttributeSource.EXIF,
+                        category = LeakCategory.LOCATION,
+                        risk = Risk.HIGH
                     )
                 }
 
@@ -77,7 +96,7 @@ class MetadataReader(private val context: Context) {
 
                 PhotoMetadata(
                     entries = entries,
-                    hasGps = entries.any { it.category == LeakCategory.LOCATION },
+                    hasGps = gps != null,
                     captureTime = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL),
                     hasThumbnail = hasThumbnail
                 )

@@ -18,3 +18,5 @@ captures/
 Thumbs.db
 build.log
 
+*.log
+
