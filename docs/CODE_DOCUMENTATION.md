@@ -59,13 +59,17 @@ Pick photo → Inspect metadata → Detect faces → Scan caption → Score risk
 
 `PhotoMetadata` is the result: ordered `MetadataEntry` list plus derived facts (GPS present, capture time, dimensions, thumbnail present). `GeoLocation` and `CoordinateFormat` convert rational GPS values to a readable DMS string and a map-ready pair. `ValueFormat` centralizes trimming and redaction. `Risk` is the per-field annotation consumed by the scorer.
 
+AndroidX `ExifInterface` returns `0/1,0/1,0/1` for GPS on some camera files (the 2008 Nikon sample used for testing is one), so `ExifGpsParser` walks the APP1/TIFF GPS IFD itself: byte order, IFD0, the `0x8825` pointer, then the latitude/longitude rationals and their `N/S/E/W` refs. The parser handles inline values and data offsets, and the offsets are relative to the TIFF header rather than the file. The app therefore shows coordinates the platform reader would have dropped.
+
 ### 4.3 Photo handling, face detection and export
 
 `PhotoFiles` opens the content URI, reads bytes once, and decodes a bitmap: first bounds only, then a sample size that keeps the long edge within a working limit to avoid OOM on camera files. `LoadedPhoto` keeps bitmap, original bytes, and display name.
 
-`FaceFinder` runs ML Kit face detection on the bitmap. The detector is the bundled variant, so the model is in the APK and no download or network call is involved. Results become `FaceRegion` objects (id, selected flag, `PixelRect` in bitmap coordinates). `FaceRegionKt` contains the helpers that scale between bitmap and preview coordinates so the overlay and export agree.
+The system photo picker redacts location metadata by default: the bytes it returns are not the original file, and the GPS block reads as zeros. The app declares `ACCESS_MEDIA_LOCATION`, asks for it at first launch, and calls `MediaStore.setRequireOriginal(uri)` before opening the stream. With the permission the bytes match the file on disk (verified by MD5 on the emulator); without it the app falls back to the redacted copy and the GPS rows are simply absent. This is worth knowing for the project itself: on a modern Android phone the picker already removes some metadata, but not every app or upload path does.
 
-`FaceBlur` applies the selection: for each selected region it blurs a padded rectangle (padding covers hair and chin) and blends the patch back. The current build uses a mosaic-style blur strong enough that the face is not recognizable at normal size. `MetadataStripper` produces the cleaned JPEG by re-encoding the bitmap, so the output has no APP1/EXIF, no thumbnail, no comment segments. `CleanPhoto` wraps the final bitmap and a suggested name. `GalleryExport` inserts it through MediaStore into Pictures/Safe to Post and returns a result. `DemoPhoto` is a bundled sample for demos and tests.
+`FaceFinder` runs ML Kit face detection on the bitmap. The detector is the bundled variant, so the model is in the APK and no download or network call is involved. Results become `FaceRegion` objects (id, selected flag, `PixelRect` in bitmap coordinates). The overlay and the export use the same bitmap coordinates, so no separate scaling helper is needed.
+
+`FaceBlur` applies the selection: for each selected region it blurs a padded rectangle (padding covers hair and chin) and blends the patch back. The current build uses a mosaic-style blur strong enough that the face is not recognizable at normal size. `MetadataStripper` produces the cleaned JPEG by re-encoding the bitmap, so the output has no APP1/EXIF, no thumbnail, no comment segments. `GalleryExport` inserts it through MediaStore into Pictures/Safe to Post and returns a result; the view model turns that into a `UiMessage`.
 
 ### 4.4 Caption scanning
 
@@ -81,7 +85,7 @@ The score is a heuristic prioritization aid, not a guarantee; the UI copy says s
 
 ### 4.6 User interface
 
-`ScanScreenKt` is the screen: photo preview with `LeakMap` overlay, score header, metadata list grouped by category, face chips with blur toggles, caption with `CaptionHighlight`, and the two primary actions (clean/export). `ThemeKt` and `StatusColors` hold the palette and score colors. `LeakMapKt` draws detected regions over the image and keeps them aligned on resize.
+`ScanScreen.kt` is the whole screen: photo preview with the face overlay, score header, metadata list grouped by category, face chips with blur toggles, caption field with inline highlighting, and the two primary actions (clean/export). The overlay is a Compose `Canvas` drawn over the preview and scaled to the displayed image, so the boxes stay aligned at any width. Caption highlighting is an `AnnotatedString` with one span per finding. `Theme.kt` holds the palette and the score colors.
 
 ## 5. How the components work together
 
@@ -93,21 +97,24 @@ Errors leave the previous state intact; `Busy` prevents a slow export from racin
 
 ## 6. Building and running
 
+The source tree is in this repository (`app/`, `settings.gradle.kts`, `build.gradle.kts`, Gradle wrapper). To build it:
+
 1. Install Android Studio (current stable), JDK 17, and the Android SDK for API 36.
-2. Open the project folder, let Gradle sync, accept requested SDK components.
+2. Open the repository root, let Gradle sync, accept requested SDK components.
 3. Connect a device on Android 10 (API 29)+ or start an emulator.
 4. Run the `app` configuration, or build with `./gradlew assembleDebug` (`gradlew.bat` on Windows). The APK lands in `app/build/outputs/apk/debug/`.
 5. Install with `adb install -r app-debug.apk`, or copy the APK to the phone and open it.
 
-Dependencies: Jetpack Compose + Material 3, `androidx.activity:activity-compose`, `androidx.lifecycle:lifecycle-viewmodel-compose`, `androidx.exifinterface:exifinterface`, `com.google.mlkit:face-detection` (bundled). Versions are managed by the Gradle version catalog. No API key, backend, or network configuration is required; the debug build is the demo build.
+Dependencies: Jetpack Compose + Material 3, `androidx.activity:activity-compose`, `androidx.lifecycle:lifecycle-viewmodel-compose`, `androidx.exifinterface:exifinterface`, `com.google.mlkit:face-detection` (bundled), and kotlinx-coroutines. Versions are pinned in `app/build.gradle.kts`. No API key, backend, or network configuration is required; the debug build is the demo build.
 
-The published test APK is the same debug build: <https://github.com/TianbinLiu/SafeToPost/releases/tag/v0.1.0>.
+This tree builds and was exercised on an Android 16 emulator: metadata for a Nikon COOLPIX P6000 sample (including 43°28'02.81" N, 11°53'06.46" E), face detection with a mosaic blur, caption findings for a phone number and a street address, and an exported JPEG with no EXIF. The published test APK is this debug build: <https://github.com/TianbinLiu/SafeToPost/releases/tag/v0.1.0-rebuild>.
 
 ## 7. Reproducing the three features
 
 ### 7.1 Metadata inspection and removal
 
 - Pick a phone photo (or the demo photo) and open the metadata list: capture time, device model, GPS and the embedded thumbnail appear with categories.
+- On first launch the app asks for `ACCESS_MEDIA_LOCATION`; grant it, otherwise the system picker hands over a copy with GPS removed and the location rows will be missing. This is a system behaviour, not an app setting.
 - Tap clean and export. Open the exported copy with a metadata viewer (`exiftool` on desktop, or a metadata app): EXIF, thumbnail, and GPS are gone; the image is unchanged apart from re-encoding.
 - Expected: entries present before export are absent after, and the original is untouched.
 
@@ -125,8 +132,9 @@ The published test APK is the same debug build: <https://github.com/TianbinLiu/S
 
 ## 8. Limitations and future work
 
-- Caption scanner is rule-based: transparent and fast, but misses paraphrases and can flag harmless dates. On-device NER could be added while keeping rules as fallback.
-- Metadata reader focuses on JPEG/EXIF. HEIC, PNG text chunks, and vendor blocks fall into "other" and are removed by re-encoding but not explained field by field. Video is out of scope.
+- The caption scanner is rule-based: transparent and fast, but it misses paraphrases and can flag harmless dates. On-device NER could be added while keeping rules as fallback.
+- The metadata reader focuses on JPEG/EXIF. HEIC, PNG text chunks, and vendor blocks fall into "other" and are removed by re-encoding but not explained field by field. Video is out of scope.
+- GPS only works when `ACCESS_MEDIA_LOCATION` is granted: the Android photo picker otherwise returns a redacted copy. Users who deny the permission still get the rest of the scan.
 - ML Kit bundled model can miss profile views and heavy occlusion; blur is a fixed-strength mosaic.
 - Android only; the iOS port was dropped from scope.
 - The risk score is heuristic, not a guarantee.
