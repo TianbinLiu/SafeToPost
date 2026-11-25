@@ -16,3 +16,5 @@ captures/
 .idea/
 .DS_Store
 Thumbs.db
+build.log
+
