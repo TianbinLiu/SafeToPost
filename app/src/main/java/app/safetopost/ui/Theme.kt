@@ -13,11 +13,55 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val Ink = Color(0xFF14212B)
-val Accent = Color(0xFFB5532F)
-val Sand = Color(0xFFF6F1E7)
-val Muted = Color(0xFF6F767E)
-val Line = Color(0xFFE4DCCD)
+enum class AppPalette(
+    val label: String,
+    val accent: Color,
+    val background: Color,
+    val ink: Color,
+    val sand: Color,
+    val muted: Color,
+    val line: Color
+) {
+    EMBER(
+        label = "Ember",
+        accent = Color(0xFFB5532F),
+        background = Color(0xFFFBF8F2),
+        ink = Color(0xFF14212B),
+        sand = Color(0xFFF6F1E7),
+        muted = Color(0xFF6F767E),
+        line = Color(0xFFE4DCCD)
+    ),
+    FOREST(
+        label = "Forest",
+        accent = Color(0xFF2F6B4F),
+        background = Color(0xFFF5FAF4),
+        ink = Color(0xFF12251B),
+        sand = Color(0xFFE7F0E5),
+        muted = Color(0xFF5F7267),
+        line = Color(0xFFD3E0D2)
+    ),
+    OCEAN(
+        label = "Ocean",
+        accent = Color(0xFF2F5D8A),
+        background = Color(0xFFF4F8FC),
+        ink = Color(0xFF0F2132),
+        sand = Color(0xFFE4EEF8),
+        muted = Color(0xFF5C6E7E),
+        line = Color(0xFFD2DFEC)
+    ),
+    PLUM(
+        label = "Plum",
+        accent = Color(0xFF7A3E6B),
+        background = Color(0xFFFBF6FA),
+        ink = Color(0xFF241423),
+        sand = Color(0xFFF2E6EF),
+        muted = Color(0xFF6F5F6C),
+        line = Color(0xFFE1D2DC)
+    );
+
+    val surface: Color get() = Color.White
+}
+
 val HighRisk = Color(0xFFB3261E)
 val MediumRisk = Color(0xFFB07A1E)
 val LowRisk = Color(0xFF2E7D5B)
@@ -28,31 +72,12 @@ fun riskColor(level: app.safetopost.model.RiskLevel): Color = when (level) {
     app.safetopost.model.RiskLevel.LOW -> LowRisk
 }
 
+@Composable
 fun riskColor(risk: app.safetopost.model.Risk): Color = when (risk) {
     app.safetopost.model.Risk.HIGH -> HighRisk
     app.safetopost.model.Risk.MEDIUM -> MediumRisk
-    app.safetopost.model.Risk.LOW -> Muted
+    app.safetopost.model.Risk.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
 }
-
-private val scheme = lightColorScheme(
-    primary = Accent,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFF3DDD4),
-    onPrimaryContainer = Color(0xFF4A1B0B),
-    secondary = Ink,
-    onSecondary = Color.White,
-    secondaryContainer = Sand,
-    onSecondaryContainer = Ink,
-    background = Color(0xFFFBF8F2),
-    onBackground = Ink,
-    surface = Color.White,
-    onSurface = Ink,
-    surfaceVariant = Sand,
-    onSurfaceVariant = Muted,
-    outline = Line,
-    outlineVariant = Line,
-    error = HighRisk
-)
 
 private val typography = Typography(
     displaySmall = TextStyle(
@@ -124,6 +149,30 @@ private val shapes = Shapes(
 )
 
 @Composable
-fun SafeToPostTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes, content = content)
+fun SafeToPostTheme(palette: AppPalette = AppPalette.EMBER, content: @Composable () -> Unit) {
+    val scheme = lightColorScheme(
+        primary = palette.accent,
+        onPrimary = Color.White,
+        primaryContainer = palette.sand,
+        onPrimaryContainer = palette.ink,
+        secondary = palette.ink,
+        onSecondary = Color.White,
+        secondaryContainer = palette.sand,
+        onSecondaryContainer = palette.ink,
+        background = palette.background,
+        onBackground = palette.ink,
+        surface = palette.surface,
+        onSurface = palette.ink,
+        surfaceVariant = palette.sand,
+        onSurfaceVariant = palette.muted,
+        outline = palette.line,
+        outlineVariant = palette.line,
+        error = HighRisk
+    )
+    MaterialTheme(
+        colorScheme = scheme,
+        typography = typography,
+        shapes = shapes,
+        content = content
+    )
 }

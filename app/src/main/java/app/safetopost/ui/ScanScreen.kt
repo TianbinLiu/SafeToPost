@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,12 +40,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -98,9 +101,15 @@ import app.safetopost.photo.LoadedPhoto
 import app.safetopost.risk.RiskScorer
 import kotlin.math.min
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScanScreen(viewModel: ScanViewModel) {
+fun ScanScreen(
+    viewModel: ScanViewModel,
+    palette: AppPalette,
+    onPaletteSelected: (AppPalette) -> Unit
+) {
     val state by viewModel.state.collectAsState()
+    var showThemes by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -131,7 +140,9 @@ fun ScanScreen(viewModel: ScanViewModel) {
         topBar = {
             Header(
                 canAdd = state.photo == null || state.phase == ScanPhase.READY,
-                onAdd = pickPhoto
+                onAdd = pickPhoto,
+                palette = palette,
+                onThemeClick = { showThemes = true }
             )
         },
         bottomBar = {
@@ -159,12 +170,28 @@ fun ScanScreen(viewModel: ScanViewModel) {
             )
         }
     }
+
+    if (showThemes) {
+        ThemeSheet(
+            selected = palette,
+            onSelect = {
+                showThemes = false
+                onPaletteSelected(it)
+            },
+            onDismiss = { showThemes = false }
+        )
+    }
 }
 
 /* ---------------------------------------------------------------- header */
 
 @Composable
-private fun Header(canAdd: Boolean, onAdd: () -> Unit) {
+private fun Header(
+    canAdd: Boolean,
+    onAdd: () -> Unit,
+    palette: AppPalette,
+    onThemeClick: () -> Unit
+) {
     Surface(color = MaterialTheme.colorScheme.background) {
         Column(
             Modifier
@@ -176,20 +203,105 @@ private fun Header(canAdd: Boolean, onAdd: () -> Unit) {
                     Text(
                         "Safe to Post",
                         style = MaterialTheme.typography.headlineMedium,
-                        color = Ink
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         "A LAST LOOK BEFORE YOU POST",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Muted
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                ThemeButton(palette = palette, onClick = onThemeClick)
+                Spacer(Modifier.width(8.dp))
                 FilledTonalIconButton(
                     onClick = onAdd,
                     enabled = canAdd,
                     modifier = Modifier.size(44.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Choose another photo")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeButton(palette: AppPalette, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = palette.accent,
+        border = BorderStroke(2.dp, palette.ink.copy(alpha = 0.18f)),
+        modifier = Modifier.size(44.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                "Aa",
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeSheet(
+    selected: AppPalette,
+    onSelect: (AppPalette) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            Text("Theme", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                "Pick a palette. The new colour sweeps across the screen.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(10.dp))
+            AppPalette.entries.forEach { entry ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable { onSelect(entry) }
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier
+                            .size(34.dp)
+                            .background(entry.accent, CircleShape)
+                    )
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            entry.label,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Background, accent and ink",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (entry == selected) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Selected theme",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
@@ -210,16 +322,16 @@ private fun EmptyState(modifier: Modifier, onPick: () -> Unit) {
         Text(
             "Three things can follow a photo you post.",
             style = MaterialTheme.typography.displaySmall,
-            color = Ink
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             "The file carries metadata, the frame carries faces, and the caption carries details. Check all three on this phone before you share.",
             style = MaterialTheme.typography.bodyLarge,
-            color = Muted
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Surface(
             shape = MaterialTheme.shapes.large,
-            color = Sand,
+            color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -240,7 +352,7 @@ private fun EmptyState(modifier: Modifier, onPick: () -> Unit) {
         Text(
             "No account. No upload. Nothing leaves the device.",
             style = MaterialTheme.typography.bodySmall,
-            color = Muted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -252,14 +364,14 @@ private fun StepRow(number: String, title: String, body: String) {
         Box(
             Modifier
                 .size(28.dp)
-                .background(Accent, CircleShape),
+                .background(MaterialTheme.colorScheme.primary, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(number, color = Color.White, style = MaterialTheme.typography.labelLarge)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = Ink)
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = Muted)
+            Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -300,7 +412,7 @@ private fun ScanContent(
             Text(
                 "Analysis stays on this device. Export writes a new file; the original is untouched.",
                 style = MaterialTheme.typography.bodySmall,
-                color = Muted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
             )
         }
@@ -323,7 +435,7 @@ private fun VerdictCard(state: ScanState) {
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, Line)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -339,18 +451,18 @@ private fun VerdictCard(state: ScanState) {
                         style = MaterialTheme.typography.labelSmall,
                         color = riskColor(level)
                     )
-                    Text(headline, style = MaterialTheme.typography.headlineSmall, color = Ink)
+                    Text(headline, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
                     Text(
                         summary(state.metadata, state.findings),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Muted
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
             if (score.factors.isNotEmpty()) {
-                HorizontalDivider(color = Line)
-                Text("WHAT COUNTS", style = MaterialTheme.typography.labelSmall, color = Muted)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                Text("WHAT COUNTS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val shown = if (expanded) score.factors else score.factors.take(3)
                 shown.forEach { FactorRow(it) }
                 if (score.factors.size > 3) {
@@ -361,7 +473,7 @@ private fun VerdictCard(state: ScanState) {
                         Text(
                             if (expanded) "Show less" else "Show all ${score.factors.size} signals",
                             style = MaterialTheme.typography.labelLarge,
-                            color = Accent
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -406,7 +518,7 @@ private fun ScoreRing(score: RiskScore) {
                 fontWeight = FontWeight.Bold,
                 color = color
             )
-            Text("/ 100", style = MaterialTheme.typography.labelSmall, color = Muted)
+            Text("/ 100", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -416,7 +528,7 @@ private fun FactorRow(factor: RiskFactor) {
     val dot = when {
         factor.weight >= 25 -> HighRisk
         factor.weight >= 10 -> MediumRisk
-        else -> Muted
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Row(
         Modifier.fillMaxWidth(),
@@ -431,7 +543,7 @@ private fun FactorRow(factor: RiskFactor) {
         Text(
             factor.explanation,
             style = MaterialTheme.typography.bodySmall,
-            color = Ink.copy(alpha = 0.82f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -439,7 +551,7 @@ private fun FactorRow(factor: RiskFactor) {
         Text(
             "+${factor.weight}",
             style = MaterialTheme.typography.labelLarge,
-            color = Muted
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -462,12 +574,13 @@ private fun summary(metadata: PhotoMetadata, findings: List<CaptionFinding>): St
 @Composable
 private fun PhotoCard(photo: LoadedPhoto, faces: List<FaceRegion>) {
     val bitmap = photo.bitmap
+    val accent = MaterialTheme.colorScheme.primary
     val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
     Card(
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, Line),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth()
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -489,7 +602,7 @@ private fun PhotoCard(photo: LoadedPhoto, faces: List<FaceRegion>) {
                     val dx = (size.width - bitmap.width * scale) / 2f
                     val dy = (size.height - bitmap.height * scale) / 2f
                     faces.forEach { face ->
-                        val color = if (face.selected) Accent else Color.White.copy(alpha = 0.9f)
+                        val color = if (face.selected) accent else Color.White.copy(alpha = 0.9f)
                         drawRect(
                             color = color,
                             topLeft = Offset(dx + face.rect.left * scale, dy + face.rect.top * scale),
@@ -514,12 +627,12 @@ private fun FacesCard(faces: List<FaceRegion>, onToggle: (Int) -> Unit) {
     ) {
         if (faces.isEmpty()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = Muted, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "No faces detected. The export still removes metadata.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Muted
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
@@ -533,19 +646,19 @@ private fun FacesCard(faces: List<FaceRegion>, onToggle: (Int) -> Unit) {
                             { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Accent.copy(alpha = 0.14f),
-                            selectedLabelColor = Accent,
-                            selectedLeadingIconColor = Accent
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                            selectedLabelColor = MaterialTheme.colorScheme.primary,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = { faces.filterNot { it.selected }.forEach { onToggle(it.id) } }) {
-                    Text("Select all", color = Accent, style = MaterialTheme.typography.labelLarge)
+                    Text("Select all", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 }
                 TextButton(onClick = { faces.filter { it.selected }.forEach { onToggle(it.id) } }) {
-                    Text("Clear", color = Muted, style = MaterialTheme.typography.labelLarge)
+                    Text("Clear", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -565,7 +678,7 @@ private fun MetadataCard(metadata: PhotoMetadata) {
             Text(
                 "No EXIF or JPEG metadata found in this file.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Muted
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
             val order = listOf(
@@ -585,7 +698,7 @@ private fun MetadataCard(metadata: PhotoMetadata) {
                     Text(
                         entry.category.name.lowercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Accent,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(top = 6.dp)
                     )
                 }
@@ -598,7 +711,7 @@ private fun MetadataCard(metadata: PhotoMetadata) {
                 ) {
                     Text(
                         if (expanded) "Show fewer fields" else "Show all ${metadata.entries.size} fields",
-                        color = Accent,
+                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
@@ -622,14 +735,14 @@ private fun MetadataRow(entry: MetadataEntry) {
         Text(
             entry.label,
             style = MaterialTheme.typography.bodyMedium,
-            color = Ink.copy(alpha = 0.72f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
             modifier = Modifier.weight(1f)
         )
         Text(
             entry.value,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = Ink,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1.1f),
@@ -647,15 +760,15 @@ private fun CaptionCard(caption: String, findings: List<CaptionFinding>, onChang
             value = caption,
             onValueChange = onChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Paste or type the caption you plan to post\u2026", color = Muted) },
+            placeholder = { Text("Paste or type the caption you plan to post\u2026", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             minLines = 3,
             maxLines = 6,
             shape = MaterialTheme.shapes.medium,
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedIndicatorColor = Accent,
-                unfocusedIndicatorColor = Line
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
             )
         )
         if (findings.isNotEmpty()) {
@@ -669,10 +782,10 @@ private fun CaptionCard(caption: String, findings: List<CaptionFinding>, onChang
                 findings.forEach { finding ->
                     val start = finding.range.first.coerceIn(0, caption.length)
                     val end = (finding.range.last + 1).coerceIn(start, caption.length)
-                    addStyle(SpanStyle(background = Accent.copy(alpha = 0.20f), color = Ink), start, end)
+                    addStyle(SpanStyle(background = MaterialTheme.colorScheme.primary.copy(alpha = 0.20f), color = MaterialTheme.colorScheme.onSurface), start, end)
                 }
             }
-            Text(annotated, style = MaterialTheme.typography.bodyLarge, color = Ink)
+            Text(annotated, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         } else if (caption.isNotBlank()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Check, contentDescription = null, tint = LowRisk, modifier = Modifier.size(18.dp))
@@ -687,7 +800,7 @@ private fun CaptionCard(caption: String, findings: List<CaptionFinding>, onChang
             Text(
                 "Phone numbers, e-mail, addresses, dates and school or work names are checked as you type.",
                 style = MaterialTheme.typography.bodySmall,
-                color = Muted
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -704,15 +817,16 @@ private fun kindLabel(kind: CaptionKind): String = when (kind) {
 }
 
 @Composable
-private fun Pill(text: String, color: Color = Accent) {
+private fun Pill(text: String, color: Color = Color.Unspecified) {
+    val pillColor = if (color == Color.Unspecified) MaterialTheme.colorScheme.primary else color
     Surface(
         shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.12f)
+        color = pillColor.copy(alpha = 0.12f)
     ) {
         Text(
             text,
             style = MaterialTheme.typography.labelSmall,
-            color = color,
+            color = pillColor,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         )
     }
@@ -753,9 +867,9 @@ private fun ActionBar(phase: ScanPhase, onExport: () -> Unit, onPick: () -> Unit
                     .height(52.dp)
                     .weight(0.42f),
                 shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(1.dp, Line)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
-                Text("New", style = MaterialTheme.typography.labelLarge, color = Ink)
+                Text("New", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -770,15 +884,15 @@ private fun SectionCard(
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, Line),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.titleLarge, color = Ink)
+                Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.weight(1f))
                 if (meta != null) {
-                    Text(meta, style = MaterialTheme.typography.bodySmall, color = Muted)
+                    Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             content()

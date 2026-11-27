@@ -13,8 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
-import app.safetopost.ui.SafeToPostTheme
-import app.safetopost.ui.ScanScreen
+import app.safetopost.ui.SafeToPostApp
 
 class MainActivity : ComponentActivity() {
 
@@ -41,9 +40,7 @@ class MainActivity : ComponentActivity() {
             requestMediaLocation.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
         }
         setContent {
-            SafeToPostTheme {
-                ScanScreen(viewModel)
-            }
+            SafeToPostApp(viewModel)
         }
         handleShareIntent(intent)
     }
