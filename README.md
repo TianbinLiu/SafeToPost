@@ -1,102 +1,136 @@
 # Safe to Post
 
 An Android app that checks a photo before you post it — and helps you remove what it would give away.
+Built as the implementation component of our CSCI 180 Computer Security group project,
+*Behind the Default Settings: How Social Networks Collect, Track, and Expose User Data*.
 
-Built as an optional demo for our CSCI 180 Computer Security group project, *Behind the Default Settings: How Social Networks Collect, Track, and Expose User Data*. Everything runs on the phone: no account, no upload step for the analysis.
+> **Status:** v0.9.0 debug build (Android 10+). Everything runs on the phone: no account,
+> no upload, no analytics.
 
-> **Status:** v0.9.0 debug build, source included. Android 10 or newer. Not on Google Play.
->
-> **New in 0.9.0:** batch "Blur all faces" switch. When enabled, each photo is run through ML Kit face detection and every detected face is mosaicked before the metadata-stripped export; photos without faces are exported unchanged.
->
-> **New in 0.8.0:** batch rows now show a thumbnail, can be unchecked to skip, and each row has its own Clean action. "Clean N selected" only processes the checked photos.
->
-> **New in 0.7.0:** keyboard undo. After Clean (or any typing), the strip shows Undo, which restores the previous field text from an in-memory stack of up to 30 snapshots.
->
-> **New in 0.6.0:** Batch check. Pick up to 12 photos at once; each row shows its score and metadata-field count, and "Clean all" writes metadata-free copies of every photo. Face selection stays in single-photo mode.
->
-> **New in 0.5.0:** "Clean caption" in the app and on the keyboard. Detected phone numbers, e-mail, addresses, dates, school/work names, handles and links become readable placeholders (`[phone]`, `[address]`, ...). The app version is undoable from the confirmation snackbar; the keyboard replaces the focused field directly (and falls back to copying the cleaned text if the editor refuses).
->
-> **New in 0.4.0:** a minimal "Safe to Post keyboard" (IME) with a caption-risk strip. It only reads the focused text field — never images — and the strip opens the app with the caption attached. Enable it under Settings → System → Languages & input → On-screen keyboard.
->
-> **New in 0.3.0:** four colour palettes with a wavy switch that sweeps from the theme button and is remembered across launches.
->
-> **New in 0.2.0:** redesigned interface (verdict card with score ring, grouped evidence, sticky export bar), share-sheet intake (`Share → Safe to Post`), and a share action for the cleaned copy.
+![UI before/after](docs/images/ui-before-after.png)
+
+## The project in one paragraph
+
+Social platforms ship privacy settings that most people never touch, and a photo carries
+more than its pixels. This app applies the project's defensive question — *if a user installs
+an app and never opens the settings menu, how much can other people see?* — to the moment of
+posting: it surfaces hidden metadata, detects faces, checks the caption, explains a 0–100 risk
+score, and writes a cleaned copy with the details removed.
+
+**Team:** Connor Toreson · Tianbin Liu (implementation) · Jason Zhou.
+CSCI 180 · Computer Security · Fall 2026.
 
 ## What it does
 
-**1. Shows the hidden data inside a photo — and removes it.**
-Picks apart the JPEG segments and the EXIF block: GPS coordinates, capture time, device make/model, software tags, thumbnail, and anything else the camera wrote in. Each field is listed with its source and risk level; one tap writes a clean copy with the metadata stripped.
+1. **Reads the hidden data inside a photo.** JPEG segments, EXIF and a custom TIFF GPS reader:
+   GPS, capture time, device make/model, software, lens, thumbnail, author fields. Location is
+   listed first and each field carries a risk dot. One tap writes a copy with no metadata.
+2. **Finds faces and blurs the ones you pick.** ML Kit (bundled, on-device) draws the detected
+   regions; choose faces, export a mosaicked copy.
+3. **Checks the caption and scores the post.** Phone, e-mail, street address, date, school/work,
+   handle and link patterns are highlighted; the score is the sum of the listed factors, so every
+   point can be explained.
+4. **Cleans the caption.** `[phone]`, `[address]`, ... replace the findings; the app offers Undo,
+   the keyboard rewrites the focused field directly.
+5. **Batch mode.** Up to 12 photos, thumbnail + score + field count per row, uncheck to skip,
+   per-row Clean, optional "Blur all faces" before the metadata-free export.
+6. **Keyboard (IME).** A minimal QWERTY with a caption-risk strip: reads only the focused text
+   field, shows what it found, offers Clean/Undo, and hands the caption back to the app.
 
-**2. Finds faces and blurs the ones you pick.**
-Runs ML Kit face detection on the decoded bitmap, overlays the detected regions, and lets you choose which faces to blur before exporting. The blurred result is re-encoded without the original metadata.
-
-**3. Checks the caption for personal details and scores the post.**
-Scans the caption text for leak categories (phone numbers, e-mail, street addresses, dates, school/workplace, handles, links), highlights the matches, and combines them with the photo findings into a **privacy risk score from 0 to 100** with a per-factor breakdown.
+![Keyboard risk strip](docs/images/keyboard-risk.png)
 
 ## Install (test build)
 
-1. On an Android phone (Android 10 / API 29 or newer), open the APK from the [Releases](../../releases) page — the current build is `v0.3.0`.
-2. Allow install from the browser when Android asks.
-3. Play Protect may warn first — that is expected for a debug build that is not distributed through Play.
+1. On an Android phone (Android 10 / API 29 or newer) open
+   [Releases → v0.9.0](https://github.com/TianbinLiu/SafeToPost/releases/tag/v0.9.0) and install
+   `SafeToPost-0.9.0.apk`.
+2. Allow install from the browser; Play Protect may warn — expected for a debug build.
+3. On first launch grant `ACCESS_MEDIA_LOCATION` if you want the GPS rows (Android's photo
+   picker otherwise hands the app a redacted copy). Everything else works without it.
 
-The app asks for `ACCESS_MEDIA_LOCATION` on first launch, and appears in the system share sheet for images. Android's photo picker hands apps a copy with location metadata redacted unless that permission is granted; with it, the app requests the original bytes (`MediaStore.setRequireOriginal`) so the GPS check is meaningful. If you deny it, everything else still works and GPS simply shows as absent.
+Optional keyboard: Settings → System → Languages & input → On-screen keyboard → Manage keyboards
+→ enable **Safe to Post keyboard**, then switch with the keyboard switcher. The keyboard sees only
+the focused text field, never images or other apps.
 
 ## Build from source
 
-Requirements: JDK 17, Android SDK 36, and Android Studio or the command-line SDK.
+Requirements: JDK 17, Android SDK 36, Android Studio or the command-line SDK.
 
 ```bash
 ./gradlew assembleDebug          # Windows: gradlew.bat assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The APK is written to `app/build/outputs/apk/debug/`. `local.properties` with `sdk.dir` is generated by Android Studio and is not committed. The debug build is the demo build: no API key, backend, or network configuration is needed.
+`local.properties` (SDK path) is generated by Android Studio and not committed. The debug build is
+the demo build: no API key, backend, or network configuration.
 
 ## How it works
 
 ```
-photo picker ──► PhotoFiles ──► original bytes + bitmap
-      │                │
-      │                ├──► MetadataReader (EXIF + JPEG segments + GPS TIFF reader) ──► PhotoMetadata ─┐
-      │                │                                                              │                │
-      │                └──► FaceFinder (ML Kit) ──► FaceRegion ───────────────────────┼──► RiskScorer ─┴──► RiskScore (0–100)
-      │                                                                               │
-caption text ──► CaptionScanner ──► CaptionFinding ──────────────────────────────────┘
-      │
-      └──► FaceBlur (selected faces) ──► MetadataStripper (re-encode) ──► GalleryExport ──► Pictures/Safe to Post
+photo picker / share sheet ──► PhotoFiles ──► original bytes + bitmap
+        │                          │
+        │                          ├──► MetadataReader (JPEG segments + EXIF + GPS TIFF) ──► PhotoMetadata ─┐
+        │                          │                                                                        │
+        │                          └──► FaceFinder (ML Kit) ──► FaceRegion ─────────────────────────────────┼──► RiskScorer ──► RiskScore (0–100)
+        │                                                                                                   │
+        └──► CaptionScanner ──► CaptionFinding ───────────────────────────────────────────────────────────┘
+
+selected faces ──► FaceBlur ──► MetadataStripper (re-encode) ──► GalleryExport ──► Pictures/Safe to Post
 ```
 
 | Package | Responsibility |
 |---|---|
-| `metadata` | JPEG segment walking (`JpegInspector`), EXIF parsing (`MetadataReader`), custom GPS IFD reader (`ExifGpsParser`), field catalog (`ExifCatalog`), per-field risk |
-| `photo` | Reading original bytes (`PhotoFiles`), face detection (`FaceFinder`), mosaic blur (`FaceBlur`), metadata stripping, MediaStore export |
-| `caption` | Rule-based caption scanner and finding categories |
-| `risk` | Factor model and 0–100 aggregation (`RiskScorer`, `RiskFactor`, `RiskLevel`) |
-| `ui` | Jetpack Compose screen: preview + face overlay, score header, metadata list, caption highlighting, theme |
-| `ScanViewModel` | Holds `ScanState`, runs the pipeline off the main thread, guards export with a busy flag |
+| `metadata` | JPEG segment walking, EXIF parsing, custom GPS IFD reader, field catalog and per-field risk |
+| `photo` | Original bytes, decoding, face detection, mosaic blur, metadata stripping, MediaStore export |
+| `caption` | Rule-based caption scan, findings, placeholder cleaning |
+| `risk` | Factor weights, 0–100 aggregation, levels |
+| `ui` | Compose screens: verdict card, evidence cards, batch, themes, keyboard |
+| `ScanViewModel` | State, pipeline orchestration, batch and export |
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map, [docs/PRIVACY.md](docs/PRIVACY.md) for the data-flow notes, [docs/MARKET_ANALYSIS.md](docs/MARKET_ANALYSIS.md) for the competitor check, and [docs/IME_FEASIBILITY.md](docs/IME_FEASIBILITY.md) for the keyboard-integration study.
+## Documentation
 
-## Tech
+| Document | What is in it |
+|---|---|
+| [Code documentation (PDF)](docs/SafeToPost_Code_Documentation.pdf) · [DOCX](docs/SafeToPost_Code_Documentation.docx) | Final submission version (v0.9.0): project description, per-module code, build/run, reproduction, limitations, references |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map and pipeline |
+| [PRIVACY.md](docs/PRIVACY.md) | Data-flow and permission notes |
+| [MARKET_ANALYSIS.md](docs/MARKET_ANALYSIS.md) | Comparable products and follow-up opportunities |
+| [IME_FEASIBILITY.md](docs/IME_FEASIBILITY.md) | What a keyboard can and cannot check, and the prototype in this repo |
+| [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | 15-minute presentation script + live demo steps + fallbacks |
+| [DEFENSE_NOTES.md](docs/DEFENSE_NOTES.md) | Anticipated questions with short answers and key numbers |
+| [SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md) | What to submit, where it lives, and the pre-class checks |
 
-- Kotlin, Jetpack Compose (Material 3), coroutines
-- AndroidX ExifInterface for EXIF; custom JPEG segment reader and TIFF GPS reader for what it misses
-- Google ML Kit face detection (bundled, on-device)
-- MediaStore for export, `ACCESS_MEDIA_LOCATION` for unredacted originals
-- `minSdk 29`, `targetSdk 36`, `versionName 0.1.0`
+## Repository map
 
-## Repository contents
+- `app/` — Android application (Kotlin, Compose, Gradle module)
+- `docs/` — architecture, privacy, code documentation (PDF/DOCX), market/IME studies, demo and defense notes
+- `docs/images/` — screenshots used in this README and the demo script
+- `Releases` — `v0.1.0` (original test build), `v0.1.0-rebuild`, then feature releases up to `v0.9.0`
 
-- `app/` — the Android application (Kotlin sources, manifest, Gradle module)
-- `docs/ARCHITECTURE.md` — module map and pipeline
-- `docs/PRIVACY.md` — data-flow and permission notes
-- `docs/CODE_DOCUMENTATION.md` — full code documentation (project description, per-module implementation notes, build/run/reproduction steps, limitations)
-- `docs/MARKET_ANALYSIS.md` — comparable products and where this app can go next
-- `docs/IME_FEASIBILITY.md` — what a keyboard can and cannot check before posting
-- `docs/` PDF/DOCX are distributed with the course submission
-- Releases — `v0.1.0` (original test build) and `v0.1.0-rebuild` (this source tree)
+## Known limitations
 
-## Team
+- Android only; the iOS port was deliberately left out of scope.
+- Metadata reader focuses on JPEG/EXIF; HEIC/PNG text chunks fall into "other" (removed on export,
+  not explained field by field). Video is out of scope.
+- Caption scanner is rule-based: misses paraphrases and can flag harmless dates. No NER/LLM yet.
+- Face detection can miss profile views and heavy occlusion; the blur is a fixed-strength mosaic.
+- The risk score is a prioritisation aid, not a guarantee.
+- The keyboard prototype has no prediction/autocorrect and only reads the focused text field.
 
-CSCI 180 · Computer Security · Fall 2026
-Connor Toreson · Tianbin Liu · Jason Zhou
+## Version history
+
+- **0.9.0** — optional "Blur all faces" in batch mode.
+- **0.8.0** — batch thumbnails, uncheck-to-skip, per-row cleaning.
+- **0.7.0** — keyboard Undo (30 snapshots).
+- **0.6.0** — batch metadata cleaning (up to 12 photos).
+- **0.5.0** — Clean caption with placeholders and Undo, in app and keyboard.
+- **0.4.0** — caption-guard IME with handoff to the app.
+- **0.3.0** — four palettes with a wavy switch, persisted.
+- **0.2.0** — redesigned UI, share-sheet intake, share-on-export.
+- **0.1.0** — first rebuilt APK (metadata, faces, caption score, export).
+
+## License / use
+
+Course project, not distributed on Google Play. Third-party libraries keep their own licenses
+(AndroidX, Google ML Kit). The sample photos used during testing are public test images and are
+not committed to this repository.

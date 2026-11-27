@@ -1,17 +1,20 @@
 # Architecture
 
-The app is a single-activity Jetpack Compose application. `ScanViewModel` owns the pipeline and exposes an immutable `ScanState`; `MainActivity` renders `ScanScreen`. All heavy work runs off the main thread.
+Safe to Post v0.9.0 is a single-activity Jetpack Compose app plus an optional input method. `ScanViewModel`
+owns the single-photo pipeline (`ScanState`) and the batch flow (`BatchState`); `MainActivity` renders
+`SafeToPostApp`, which applies the selected palette and the wavy theme transition. Heavy work runs off
+the main thread.
 
-## Pipeline
+## Single-photo pipeline
 
 ```
-PhotoPicker / DemoPhoto
+Photo picker / share sheet
         │
         ▼
-PhotoFiles ──► LoadedPhoto (bitmap + bytes + name)
+PhotoFiles ──► LoadedPhoto (bitmap + original bytes + name)
         │
         ├──► MetadataReader ──► PhotoMetadata ──► MetadataEntry[]
-        │        (JpegInspector → JpegSegment, EXIF via ExifInterface)
+        │        (JpegInspector → JpegSegment; ExifInterface; ExifGpsParser for GPS)
         │
         ├──► FaceFinder (ML Kit) ──► FaceRegion[] (PixelRect)
         │
@@ -21,57 +24,80 @@ PhotoFiles ──► LoadedPhoto (bitmap + bytes + name)
                               RiskScorer ──► RiskScore (0–100, RiskFactor[])
                                    │
                                    ▼
-              MetadataStripper / FaceBlur ──► CleanPhoto ──► GalleryExport
+              FaceBlur (selected) ──► MetadataStripper ──► GalleryExport
 ```
 
-## Packages
+## Batch pipeline
+
+```
+Batch picker (≤ 12 URIs)
+        │
+        ▼
+loadBatch: bytes → JpegInspector → MetadataReader → RiskScore + thumbnail
+        │
+        ▼
+BatchScreen: checkbox (skip), per-row Clean, optional Blur all faces
+        │
+        ▼
+cleanItem: decode → [FaceFinder + FaceBlur] → MetadataStripper → GalleryExport
+```
+
+## Modules
 
 ### `metadata`
 
 | Class | Role |
 |---|---|
-| `JpegInspector` | Walks the JPEG marker structure and yields `JpegSegment`s (APPn, SOF, SOS, …) without decoding pixels. |
-| `JpegSegment` / `SegmentKind` | One segment and its kind. |
-| `MetadataReader` | Turns the segments plus EXIF into a `PhotoMetadata` list. |
-| `PhotoMetadata` | Immutable result: entries, GPS, dimensions, capture info. |
-| `ExifCatalog` / `TagSpec` | The catalog of fields the UI can explain, with human labels and risk class. |
-| `AttributeSource` | Where a value came from (EXIF tag, JPEG segment, inferred). |
-| `LeakCategory` | What kind of privacy leak a field represents (location, identity, device, time, …). |
-| `GeoLocation`, `CoordinateFormat`, `ValueFormat` | Value normalization and display formatting (e.g., DMS coordinates). |
-| `Risk` | Per-field risk annotation used by the scorer. |
+| `JpegInspector`, `JpegSegment`, `SegmentKind` | Walk the JPEG marker structure without decoding pixels. |
+| `MetadataReader` | Combines EXIF and segment facts into `PhotoMetadata`. |
+| `ExifGpsParser` | Reads the APP1/TIFF GPS IFD directly (the platform reader returns zeros on some camera files), including inline values and offsets relative to the TIFF header. |
+| `ExifCatalog`, `TagSpec` | Which tags the app can explain, with label, `LeakCategory` and `Risk`. |
+| `CoordinateFormat`, `ValueFormat` | DMS formatting and value trimming. |
 
 ### `photo`
 
 | Class | Role |
 |---|---|
-| `PhotoFiles` | Opens the picked URI, reads bytes, decodes a bounded bitmap. |
-| `LoadedPhoto` | Bitmap + original bytes + display name. |
-| `DemoPhoto` | Bundled sample so the flow can be shown without picking a photo. |
-| `FaceFinder` | Runs ML Kit face detection and maps results to `FaceRegion`s. |
-| `FaceBlur` | Applies the chosen blurs to the bitmap. |
-| `MetadataStripper` | Re-encodes the JPEG without the original metadata segments. |
-| `CleanPhoto` | Result of stripping/blurring, ready to export. |
-| `GalleryExport` | Writes the cleaned image through MediaStore. |
+| `PhotoFiles` | Original bytes (with `MediaStore.setRequireOriginal` when permitted), bounded bitmap decode, thumbnail, display name. |
+| `FaceFinder` | Bundled ML Kit face detection → `FaceRegion`. |
+| `FaceBlur` | Padded mosaic over selected faces. |
+| `MetadataStripper` | Re-encodes the bitmap so the output contains no APP1/EXIF. |
+| `GalleryExport` | Writes the cleaned copy through MediaStore into `Pictures/Safe to Post`. |
 
 ### `caption`
 
-`CaptionScanner` runs an ordered set of `Rule`s against the caption and returns `CaptionFinding`s (`CaptionKind` + character range). The ranges are what `CaptionHighlight` uses to mark the text, and the findings are also fed to the scorer.
+`CaptionScanner` runs ordered regex rules and returns `CaptionFinding` (kind + character range).
+`CaptionCleaner` replaces findings with `[phone]`, `[address]`, …; it is shared by the app and the
+keyboard so both produce the same cleaned text.
 
 ### `risk`
 
-`RiskScorer` combines the metadata entries and caption findings into weighted `RiskFactor`s, sums them into a 0–100 `RiskScore`, and maps the total to a `RiskLevel` (low / medium / high). Each factor carries a `RiskSource` so the UI can explain *why* the score moved.
+`RiskScorer` turns metadata entries and caption findings into weighted `RiskFactor`s, caps the sum at
+100, and maps it to a `RiskLevel`. The UI lists the factors, so the score is explainable.
 
-### `ui` and state
+### `ui`
 
-`ScanScreenKt` is the Compose screen; `LeakMapKt` renders the detected faces/fields; `CaptionHighlight` draws the caption findings; `ThemeKt` and `StatusColors` hold the design tokens. `ScanViewModel` exposes `ScanState` and the actions (pick, scan, toggle face, export).
+| Class | Role |
+|---|---|
+| `ScanScreen` | Verdict card, photo overlay, People, metadata, caption, sticky action bar, theme sheet. |
+| `BatchScreen` | Batch list, thumbnails, skip checkbox, per-row Clean, blur switch. |
+| `SafeToPostApp` | Palette state, wavy theme reveal. |
+| `Theme`, `ThemePreference` | `AppPalette` (Ember/Forest/Ocean/Plum), scheme, persisted choice. |
+| `BatchState`, `ScanState` | Immutable UI state models. |
 
-## Build facts (from the shipped APK)
+### `ime`
+
+`SafeToPostImeService` is a minimal `InputMethodService`: compact QWERTY, caption strip that runs
+`CaptionScanner` on the focused field, Clean/Undo (30 snapshots), and handoff of the caption to
+`MainActivity`. It has no image access and no network use.
+
+## Build facts
 
 | | |
 |---|---|
 | Package | `app.safetopost` |
-| Version | 0.1.0 (versionCode 1) |
+| Version | 0.9.0 (versionCode 9) |
 | minSdk / targetSdk | 29 / 36 |
+| UI | Jetpack Compose, Material 3 |
+| Face detection | ML Kit bundled model (on-device) |
 | ABIs | arm64-v8a, armeabi-v7a, x86, x86_64 |
-| Face detection | ML Kit bundled model (`libface_detector_v2_jni.so`) |
-| UI | Jetpack Compose |
