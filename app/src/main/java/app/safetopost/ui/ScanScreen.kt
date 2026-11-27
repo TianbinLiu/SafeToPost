@@ -158,7 +158,8 @@ fun ScanScreen(
         if (state.photo == null) {
             EmptyState(
                 modifier = Modifier.padding(padding),
-                onPick = pickPhoto
+                onPick = pickPhoto,
+                caption = state.caption
             )
         } else {
             ScanContent(
@@ -311,7 +312,7 @@ private fun ThemeSheet(
 /* ------------------------------------------------------------ empty state */
 
 @Composable
-private fun EmptyState(modifier: Modifier, onPick: () -> Unit) {
+private fun EmptyState(modifier: Modifier, onPick: () -> Unit, caption: String = "") {
     Column(
         modifier
             .fillMaxSize()
@@ -348,6 +349,33 @@ private fun EmptyState(modifier: Modifier, onPick: () -> Unit) {
             shape = MaterialTheme.shapes.medium
         ) {
             Text("Choose a photo", style = MaterialTheme.typography.labelLarge)
+        }
+        if (caption.isNotBlank()) {
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "FROM THE KEYBOARD",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        caption,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "Choose the photo you were about to post; the caption stays with it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
         Text(
             "No account. No upload. Nothing leaves the device.",

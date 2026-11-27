@@ -17,6 +17,10 @@ import app.safetopost.ui.SafeToPostApp
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        const val EXTRA_CAPTION = "app.safetopost.extra.CAPTION"
+    }
+
     private val viewModel: ScanViewModel by viewModels()
     private val requestMediaLocation =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -53,6 +57,7 @@ class MainActivity : ComponentActivity() {
 
     /** Photos shared into "Safe to Post" from the gallery or another app. */
     private fun handleShareIntent(intent: Intent?) {
+        intent?.getStringExtra(EXTRA_CAPTION)?.takeIf { it.isNotBlank() }?.let(viewModel::updateCaption)
         if (intent?.action != Intent.ACTION_SEND) return
         val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)

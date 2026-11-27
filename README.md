@@ -4,7 +4,9 @@ An Android app that checks a photo before you post it — and helps you remove w
 
 Built as an optional demo for our CSCI 180 Computer Security group project, *Behind the Default Settings: How Social Networks Collect, Track, and Expose User Data*. Everything runs on the phone: no account, no upload step for the analysis.
 
-> **Status:** v0.3.0 debug build, source included. Android 10 or newer. Not on Google Play.
+> **Status:** v0.4.0 debug build, source included. Android 10 or newer. Not on Google Play.
+>
+> **New in 0.4.0:** a minimal "Safe to Post keyboard" (IME) with a caption-risk strip. It only reads the focused text field — never images — and the strip opens the app with the caption attached. Enable it under Settings → System → Languages & input → On-screen keyboard.
 >
 > **New in 0.3.0:** four colour palettes with a wavy switch that sweeps from the theme button and is remembered across launches.
 >

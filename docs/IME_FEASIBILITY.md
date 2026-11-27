@@ -82,6 +82,35 @@ keyboard audits photos.
 - Test matrix: Instagram/TikTok caption fields, X composer, the system Messages app; check
   what `getExtractedText` returns in each, and what happens in password fields.
 
+## Prototype in this repository (v0.4.0)
+
+`app/src/main/java/app/safetopost/ime/SafeToPostImeService.kt` is the caption-guard
+prototype: a compact QWERTY with a digit row, shift, space, period, enter and backspace,
+plus a strip above the keys. The strip runs `CaptionScanner` on the focused field and
+shows either "caption looks clean" or "phone + address in this caption · tap to review".
+Tapping it opens `MainActivity` with the caption attached; the empty state shows a
+"FROM THE KEYBOARD" card and keeps the text when a photo is picked.
+
+Enable it on a device: Settings → System → Languages & input → On-screen keyboard → Manage
+keyboards → enable **Safe to Post keyboard**, then switch with the keyboard switcher.
+Command-line equivalent for testing:
+
+```bash
+adb shell ime enable app.safetopost/.ime.SafeToPostImeService
+adb shell ime set app.safetopost/.ime.SafeToPostImeService
+# back to the system keyboard afterwards:
+adb shell ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME
+```
+
+Verified on an Android 16 emulator: typing "Call 4085551234 from 123 Main Street" in the
+Settings search box turns the strip into "phone + address"; tapping it opens Safe to Post
+with the caption in the "FROM THE KEYBOARD" card.
+
+Known limits of the prototype: English letters and digits only, no prediction or
+autocorrect, no emoji, no voice input; it reads only the focused field and sends nothing
+off the device. It is a demonstration of the caption half, not a replacement for the
+image check.
+
 ## Recommendation
 
 Ship the share-sheet path (done) and keep the keyboard as an optional **caption guard**
