@@ -29,10 +29,91 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state.asStateFlow()
 
+    private val _batch = MutableStateFlow(BatchState())
+    val batch: StateFlow<BatchState> = _batch.asStateFlow()
+    private val batchBusy = AtomicBoolean(false)
+
     private val captionScanner = CaptionScanner()
     private val metadataReader = MetadataReader(application)
     private val faceFinder = FaceFinder()
     private val busy = AtomicBoolean(false)
+
+    fun loadBatch(uris: List<Uri>) {
+        val selected = uris.distinct().take(12)
+        if (selected.isEmpty()) return
+        viewModelScope.launch {
+            _batch.value = BatchState(phase = BatchPhase.SCANNING, total = selected.size)
+            val items = mutableListOf<BatchItem>()
+            selected.forEachIndexed { index, uri ->
+                try {
+                    val name = withContext(Dispatchers.IO) {
+                        PhotoFiles.displayName(getApplication(), uri)
+                    } ?: "Photo ${index + 1}"
+                    val bytes = withContext(Dispatchers.IO) {
+                        PhotoFiles.bytes(getApplication(), uri)
+                    }
+                    val segments = JpegInspector.inspect(bytes)
+                    val metadata = metadataReader.read(bytes, segments)
+                    val score = RiskScorer.score(metadata, emptyList())
+                    items += BatchItem(index, uri, name, metadata, score)
+                } catch (t: Throwable) {
+                    // Skip a photo that cannot be read; the rest of the batch continues.
+                }
+                _batch.update { it.copy(items = items.toList(), progress = index + 1) }
+            }
+            _batch.update { it.copy(phase = BatchPhase.READY, items = items) }
+        }
+    }
+
+    fun cleanBatch() {
+        val current = _batch.value
+        if (current.items.isEmpty() || current.phase != BatchPhase.READY) return
+        if (!batchBusy.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            _batch.update { it.copy(phase = BatchPhase.EXPORTING, progress = 0) }
+            var cleaned = 0
+            current.items.forEachIndexed { index, item ->
+                try {
+                    val photo = withContext(Dispatchers.IO) {
+                        PhotoFiles.load(getApplication(), item.uri)
+                    }
+                    val bytes = withContext(Dispatchers.Default) {
+                        MetadataStripper.strip(photo.bitmap)
+                    }
+                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    val saved = withContext(Dispatchers.IO) {
+                        GalleryExport.save(getApplication(), bitmap, photo.name)
+                    }
+                    if (saved != null) {
+                        cleaned++
+                        _batch.update { state ->
+                            state.copy(
+                                items = state.items.map {
+                                    if (it.index == item.index) it.copy(cleaned = true) else it
+                                },
+                                progress = index + 1
+                            )
+                        }
+                    }
+                } catch (t: Throwable) {
+                    // Leave this item marked as not cleaned.
+                }
+            }
+            _batch.update { it.copy(phase = BatchPhase.READY) }
+            _state.update {
+                it.copy(
+                    message = UiMessage(
+                        "Batch cleaned: $cleaned of ${current.items.size} photos saved to Pictures/Safe to Post"
+                    )
+                )
+            }
+            batchBusy.set(false)
+        }
+    }
+
+    fun clearBatch() {
+        _batch.value = BatchState()
+    }
 
     fun load(uri: Uri) {
         if (!busy.compareAndSet(false, true)) return

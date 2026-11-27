@@ -16,9 +16,14 @@ data class LoadedPhoto(
 
 object PhotoFiles {
 
+    fun bytes(context: Context, uri: Uri): ByteArray =
+        openPhoto(context, uri).use { it.readBytes() }
+
+    fun displayName(context: Context, uri: Uri): String? = queryName(context, uri)
+
     fun load(context: Context, uri: Uri): LoadedPhoto {
         val resolver = context.contentResolver
-        val bytes = openPhoto(context, uri).use { it.readBytes() }
+        val bytes = bytes(context, uri)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
 
@@ -32,7 +37,7 @@ object PhotoFiles {
         return LoadedPhoto(
             bitmap = bitmap,
             bytes = bytes,
-            name = queryName(context, uri) ?: "photo",
+            name = displayName(context, uri) ?: "photo",
             mimeType = resolver.getType(uri)
         )
     }

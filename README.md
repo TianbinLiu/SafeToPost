@@ -4,7 +4,9 @@ An Android app that checks a photo before you post it — and helps you remove w
 
 Built as an optional demo for our CSCI 180 Computer Security group project, *Behind the Default Settings: How Social Networks Collect, Track, and Expose User Data*. Everything runs on the phone: no account, no upload step for the analysis.
 
-> **Status:** v0.5.0 debug build, source included. Android 10 or newer. Not on Google Play.
+> **Status:** v0.6.0 debug build, source included. Android 10 or newer. Not on Google Play.
+>
+> **New in 0.6.0:** Batch check. Pick up to 12 photos at once; each row shows its score and metadata-field count, and "Clean all" writes metadata-free copies of every photo. Face selection stays in single-photo mode.
 >
 > **New in 0.5.0:** "Clean caption" in the app and on the keyboard. Detected phone numbers, e-mail, addresses, dates, school/work names, handles and links become readable placeholders (`[phone]`, `[address]`, ...). The app version is undoable from the confirmation snackbar; the keyboard replaces the focused field directly (and falls back to copying the cleaned text if the editor refuses).
 >

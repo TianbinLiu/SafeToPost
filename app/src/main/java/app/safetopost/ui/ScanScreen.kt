@@ -110,6 +110,7 @@ fun ScanScreen(
     onPaletteSelected: (AppPalette) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
+    val batch by viewModel.batch.collectAsState()
     var showThemes by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -118,6 +119,9 @@ fun ScanScreen(
     }
     val pickPhoto: () -> Unit = {
         picker.launch("image/*")
+    }
+    val batchPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        if (uris.isNotEmpty()) viewModel.loadBatch(uris)
     }
 
     LaunchedEffect(state.message?.id) {
@@ -151,12 +155,13 @@ fun ScanScreen(
             Header(
                 canAdd = state.photo == null || state.phase == ScanPhase.READY,
                 onAdd = pickPhoto,
+                onBatch = { batchPicker.launch("image/*") },
                 palette = palette,
                 onThemeClick = { showThemes = true }
             )
         },
         bottomBar = {
-            if (state.photo != null) {
+            if (batch.total == 0 && state.photo != null) {
                 ActionBar(
                     phase = state.phase,
                     onExport = viewModel::export,
@@ -165,7 +170,14 @@ fun ScanScreen(
             }
         }
     ) { padding ->
-        if (state.photo == null) {
+        if (batch.total > 0 || batch.items.isNotEmpty()) {
+            BatchScreen(
+                modifier = Modifier.padding(padding),
+                batch = batch,
+                onClean = viewModel::cleanBatch,
+                onClose = viewModel::clearBatch
+            )
+        } else if (state.photo == null) {
             EmptyState(
                 modifier = Modifier.padding(padding),
                 onPick = pickPhoto,
@@ -201,6 +213,7 @@ fun ScanScreen(
 private fun Header(
     canAdd: Boolean,
     onAdd: () -> Unit,
+    onBatch: () -> Unit,
     palette: AppPalette,
     onThemeClick: () -> Unit
 ) {
@@ -221,6 +234,16 @@ private fun Header(
                         "A LAST LOOK BEFORE YOU POST",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(
+                    onClick = onBatch,
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text(
+                        "Batch",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 ThemeButton(palette = palette, onClick = onThemeClick)
