@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.sp
 import app.safetopost.ScanPhase
 import app.safetopost.ScanState
 import app.safetopost.ScanViewModel
+import app.safetopost.UiAction
 import app.safetopost.model.CaptionFinding
 import app.safetopost.model.CaptionKind
 import app.safetopost.model.FaceRegion
@@ -122,14 +123,23 @@ fun ScanScreen(
     LaunchedEffect(state.message?.id) {
         val message = state.message ?: return@LaunchedEffect
         val exported = state.lastExport
+        val actionLabel = when (message.action) {
+            UiAction.SHARE -> if (exported != null) "Share" else null
+            UiAction.UNDO_CAPTION -> "Undo"
+            null -> null
+        }
         val result = snackbar.showSnackbar(
             message = message.text,
-            actionLabel = if (exported != null) "Share" else null,
+            actionLabel = actionLabel,
             withDismissAction = true,
             duration = SnackbarDuration.Long
         )
-        if (result == SnackbarResult.ActionPerformed && exported != null) {
-            shareExport(context, exported)
+        if (result == SnackbarResult.ActionPerformed) {
+            when (message.action) {
+                UiAction.SHARE -> if (exported != null) shareExport(context, exported)
+                UiAction.UNDO_CAPTION -> viewModel.undoCaptionClean()
+                null -> Unit
+            }
         }
         viewModel.clearMessage()
     }
@@ -167,6 +177,7 @@ fun ScanScreen(
                 state = state,
                 onToggleFace = viewModel::toggleFace,
                 onCaptionChange = viewModel::updateCaption,
+                onCleanCaption = viewModel::cleanCaption,
                 onPick = pickPhoto
             )
         }
@@ -412,6 +423,7 @@ private fun ScanContent(
     state: ScanState,
     onToggleFace: (Int) -> Unit,
     onCaptionChange: (String) -> Unit,
+    onCleanCaption: () -> Unit,
     onPick: () -> Unit
 ) {
     val photo = state.photo ?: return
@@ -433,7 +445,8 @@ private fun ScanContent(
             CaptionCard(
                 caption = state.caption,
                 findings = state.findings,
-                onChange = onCaptionChange
+                onChange = onCaptionChange,
+                onClean = onCleanCaption
             )
         }
         item {
@@ -782,7 +795,12 @@ private fun MetadataRow(entry: MetadataEntry) {
 /* -------------------------------------------------------------- caption */
 
 @Composable
-private fun CaptionCard(caption: String, findings: List<CaptionFinding>, onChange: (String) -> Unit) {
+private fun CaptionCard(
+    caption: String,
+    findings: List<CaptionFinding>,
+    onChange: (String) -> Unit,
+    onClean: () -> Unit
+) {
     SectionCard(title = "Caption check", meta = if (caption.isBlank()) null else "${caption.length} chars") {
         OutlinedTextField(
             value = caption,
@@ -804,6 +822,24 @@ private fun CaptionCard(caption: String, findings: List<CaptionFinding>, onChang
                 items(findings.distinctBy { it.kind }) { finding ->
                     Pill("${kindLabel(finding.kind)} +${RiskScorer.captionWeight(finding.kind)}")
                 }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = onClean,
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        "Clean caption",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "replaces details with [phone] / [address]",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             val annotated = buildAnnotatedString {
                 append(caption)

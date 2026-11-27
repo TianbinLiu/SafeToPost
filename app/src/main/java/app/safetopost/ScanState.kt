@@ -9,7 +9,13 @@ import app.safetopost.photo.LoadedPhoto
 
 enum class ScanPhase { IDLE, SCANNING, READY, EXPORTING }
 
-data class UiMessage(val text: String, val id: Long = System.nanoTime())
+enum class UiAction { SHARE, UNDO_CAPTION }
+
+data class UiMessage(
+    val text: String,
+    val action: UiAction? = null,
+    val id: Long = System.nanoTime()
+)
 
 data class ScanState(
     val phase: ScanPhase = ScanPhase.IDLE,
@@ -20,5 +26,6 @@ data class ScanState(
     val findings: List<CaptionFinding> = emptyList(),
     val score: RiskScore = RiskScore(),
     val message: UiMessage? = null,
-    val lastExport: Uri? = null
+    val lastExport: Uri? = null,
+    val previousCaption: String? = null
 )

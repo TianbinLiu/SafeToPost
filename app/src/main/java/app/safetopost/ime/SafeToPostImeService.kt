@@ -1,5 +1,7 @@
 package app.safetopost.ime
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -10,8 +12,10 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import app.safetopost.MainActivity
 import app.safetopost.R
+import app.safetopost.caption.CaptionCleaner
 import app.safetopost.caption.CaptionScanner
 import app.safetopost.model.CaptionFinding
 import app.safetopost.model.CaptionKind
@@ -27,14 +31,19 @@ class SafeToPostImeService : InputMethodService() {
 
     private val scanner = CaptionScanner()
     private lateinit var warning: TextView
+    private lateinit var warningBar: LinearLayout
+    private lateinit var cleanButton: TextView
     private lateinit var keys: LinearLayout
     private var shifted = false
 
     override fun onCreateInputView(): View {
         val root = layoutInflater.inflate(R.layout.ime_keyboard, null)
         warning = root.findViewById(R.id.ime_warning)
+        warningBar = root.findViewById(R.id.ime_warning_bar)
+        cleanButton = root.findViewById(R.id.ime_clean)
         keys = root.findViewById(R.id.ime_keys)
         warning.setOnClickListener { openReview() }
+        cleanButton.setOnClickListener { cleanField() }
         buildKeyboard()
         updateWarning(emptyList())
         return root
@@ -202,12 +211,14 @@ class SafeToPostImeService : InputMethodService() {
         if (findings.isEmpty()) {
             warning.text = "Safe to Post \u00b7 caption looks clean"
             warning.setTextColor(Color.parseColor("#2F6B4F"))
-            warning.background = rounded(Color.parseColor("#E7F0E5"))
+            warningBar.background = rounded(Color.parseColor("#E7F0E5"))
+            cleanButton.visibility = View.GONE
         } else {
             val kinds = findings.map { label(it.kind) }.distinct().joinToString(" + ")
             warning.text = "\u26a0 $kinds in this caption \u00b7 tap to review"
             warning.setTextColor(Color.parseColor("#B5532F"))
-            warning.background = rounded(Color.parseColor("#F3DDD4"))
+            warningBar.background = rounded(Color.parseColor("#F3DDD4"))
+            cleanButton.visibility = View.VISIBLE
         }
     }
 
@@ -225,6 +236,28 @@ class SafeToPostImeService : InputMethodService() {
         CaptionKind.SCHOOL_OR_WORK -> "school/work"
         CaptionKind.HANDLE -> "handle"
         CaptionKind.LINK -> "link"
+    }
+
+    private fun cleanField() {
+        val connection = currentInputConnection ?: return
+        val before = connection.getTextBeforeCursor(5000, 0)?.toString().orEmpty()
+        val after = connection.getTextAfterCursor(2000, 0)?.toString().orEmpty()
+        val text = before + after
+        val findings = scanner.scan(text)
+        if (findings.isEmpty()) return
+        val cleaned = CaptionCleaner.clean(text, findings)
+        try {
+            connection.beginBatchEdit()
+            connection.finishComposingText()
+            connection.deleteSurroundingText(before.length, after.length)
+            connection.commitText(cleaned, 1)
+            connection.endBatchEdit()
+            refreshWarning()
+        } catch (t: Throwable) {
+            val clipboard = getSystemService(ClipboardManager::class.java)
+            clipboard?.setPrimaryClip(ClipData.newPlainText("Cleaned caption", cleaned))
+            Toast.makeText(this, "Cleaned caption copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun openReview() {

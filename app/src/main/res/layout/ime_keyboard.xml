@@ -6,16 +6,37 @@
     android:orientation="vertical"
     android:padding="6dp">
 
-    <TextView
-        android:id="@+id/ime_warning"
+    <LinearLayout
+        android:id="@+id/ime_warning_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingHorizontal="12dp"
-        android:paddingVertical="9dp"
-        android:text="Safe to Post · caption looks clean"
-        android:textColor="#2F6B4F"
-        android:textSize="12sp" />
+        android:paddingVertical="6dp">
+
+        <TextView
+            android:id="@+id/ime_warning"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Safe to Post · caption looks clean"
+            android:textColor="#2F6B4F"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/ime_clean"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:text="Clean"
+            android:textColor="#B5532F"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/ime_keys"

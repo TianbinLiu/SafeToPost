@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.safetopost.caption.CaptionCleaner
 import app.safetopost.caption.CaptionScanner
 import app.safetopost.metadata.JpegInspector
 import app.safetopost.metadata.MetadataReader
@@ -78,7 +79,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         val current = _state.value
         val findings = captionScanner.scan(text)
         val score = RiskScorer.score(current.metadata, findings)
-        _state.update { it.copy(caption = text, findings = findings, score = score) }
+        _state.update { it.copy(caption = text, findings = findings, score = score, previousCaption = null) }
     }
 
     fun toggleFace(id: Int) {
@@ -114,7 +115,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                         phase = ScanPhase.READY,
                         message = UiMessage(
                             if (uri != null) "Saved to Pictures/Safe to Post · removed $removed metadata fields, blurred $blurred face(s)"
-                            else "Could not save the clean copy"
+                            else "Could not save the clean copy",
+                            action = if (uri != null) UiAction.SHARE else null
                         ),
                         lastExport = uri
                     )
@@ -129,6 +131,41 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 busy.set(false)
             }
+        }
+    }
+
+    fun cleanCaption() {
+        val current = _state.value
+        if (current.findings.isEmpty()) return
+        val cleaned = CaptionCleaner.clean(current.caption, current.findings)
+        val findings = captionScanner.scan(cleaned)
+        val score = RiskScorer.score(current.metadata, findings)
+        _state.update {
+            it.copy(
+                previousCaption = it.caption,
+                caption = cleaned,
+                findings = findings,
+                score = score,
+                message = UiMessage(
+                    "Caption cleaned · ${current.findings.size} detail(s) replaced",
+                    action = UiAction.UNDO_CAPTION
+                )
+            )
+        }
+    }
+
+    fun undoCaptionClean() {
+        val previous = _state.value.previousCaption ?: return
+        val findings = captionScanner.scan(previous)
+        val score = RiskScorer.score(_state.value.metadata, findings)
+        _state.update {
+            it.copy(
+                previousCaption = null,
+                caption = previous,
+                findings = findings,
+                score = score,
+                message = UiMessage("Caption restored")
+            )
         }
     }
 
