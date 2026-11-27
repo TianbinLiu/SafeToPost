@@ -33,7 +33,9 @@ class SafeToPostImeService : InputMethodService() {
     private lateinit var warning: TextView
     private lateinit var warningBar: LinearLayout
     private lateinit var cleanButton: TextView
+    private lateinit var undoButton: TextView
     private lateinit var keys: LinearLayout
+    private val undoStack = ArrayDeque<String>()
     private var shifted = false
 
     override fun onCreateInputView(): View {
@@ -41,9 +43,11 @@ class SafeToPostImeService : InputMethodService() {
         warning = root.findViewById(R.id.ime_warning)
         warningBar = root.findViewById(R.id.ime_warning_bar)
         cleanButton = root.findViewById(R.id.ime_clean)
+        undoButton = root.findViewById(R.id.ime_undo)
         keys = root.findViewById(R.id.ime_keys)
         warning.setOnClickListener { openReview() }
         cleanButton.setOnClickListener { cleanField() }
+        undoButton.setOnClickListener { undoLast() }
         buildKeyboard()
         updateWarning(emptyList())
         return root
@@ -164,12 +168,44 @@ class SafeToPostImeService : InputMethodService() {
 
     private fun commit(text: String) {
         val connection = currentInputConnection ?: return
+        pushUndo()
         connection.commitText(text, 1)
         refreshWarning()
     }
 
+    private fun pushUndo() {
+        val snapshot = currentText()
+        if (undoStack.lastOrNull() == snapshot) return
+        undoStack.addLast(snapshot)
+        if (undoStack.size > 30) undoStack.removeFirst()
+    }
+
+    private fun undoLast() {
+        val previous = undoStack.removeLastOrNull() ?: return
+        replaceField(previous)
+        refreshWarning()
+    }
+
+    private fun replaceField(text: String) {
+        val connection = currentInputConnection ?: return
+        val before = connection.getTextBeforeCursor(5000, 0)?.toString().orEmpty()
+        val after = connection.getTextAfterCursor(2000, 0)?.toString().orEmpty()
+        try {
+            connection.beginBatchEdit()
+            connection.finishComposingText()
+            connection.deleteSurroundingText(before.length, after.length)
+            connection.commitText(text, 1)
+            connection.endBatchEdit()
+        } catch (t: Throwable) {
+            val clipboard = getSystemService(ClipboardManager::class.java)
+            clipboard?.setPrimaryClip(ClipData.newPlainText("Caption", text))
+            Toast.makeText(this, "Caption copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun backspace() {
         val connection = currentInputConnection ?: return
+        pushUndo()
         val selected = connection.getSelectedText(0)
         if (!selected.isNullOrEmpty()) {
             connection.commitText("", 1)
@@ -220,6 +256,7 @@ class SafeToPostImeService : InputMethodService() {
             warningBar.background = rounded(Color.parseColor("#F3DDD4"))
             cleanButton.visibility = View.VISIBLE
         }
+        undoButton.visibility = if (undoStack.isEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun rounded(color: Int): GradientDrawable =
@@ -245,6 +282,7 @@ class SafeToPostImeService : InputMethodService() {
         val text = before + after
         val findings = scanner.scan(text)
         if (findings.isEmpty()) return
+        pushUndo()
         val cleaned = CaptionCleaner.clean(text, findings)
         try {
             connection.beginBatchEdit()

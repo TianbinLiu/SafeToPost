@@ -92,7 +92,7 @@ Tapping it opens `MainActivity` with the caption attached; the empty state shows
 "FROM THE KEYBOARD" card and keeps the text when a photo is picked. A **Clean** action on
 the right side of the strip rewrites the focused field through `CaptionCleaner`
 (`[phone]`, `[address]`, ...) and falls back to copying the cleaned text if the editor
-refuses the batch edit.
+refuses the batch edit. An **Undo** action appears after Clean (or after typing) and restores the previous field text from an in-memory stack capped at 30 snapshots.
 
 Enable it on a device: Settings → System → Languages & input → On-screen keyboard → Manage
 keyboards → enable **Safe to Post keyboard**, then switch with the keyboard switcher.

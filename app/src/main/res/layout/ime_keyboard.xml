@@ -26,6 +26,17 @@
             android:textSize="12sp" />
 
         <TextView
+            android:id="@+id/ime_undo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:text="Undo"
+            android:textColor="#6F767E"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/ime_clean"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
