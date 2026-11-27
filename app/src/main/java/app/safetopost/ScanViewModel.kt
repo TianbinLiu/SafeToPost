@@ -62,7 +62,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 _state.update {
                     it.copy(
                         phase = ScanPhase.IDLE,
-                        message = UiMessage(t.message ?: "Could not read the photo")
+                        message = UiMessage(
+                            if (t is SecurityException) "Android did not grant access to that photo. Pick it from the gallery instead."
+                            else t.message ?: "Could not read the photo"
+                        )
                     )
                 }
             } finally {
@@ -104,13 +107,16 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 val uri = withContext(Dispatchers.IO) {
                     GalleryExport.save(getApplication(), bitmap, photo.name)
                 }
+                val removed = current.metadata.entries.size
+                val blurred = current.faces.count { it.selected }
                 _state.update {
                     it.copy(
                         phase = ScanPhase.READY,
                         message = UiMessage(
-                            if (uri != null) "Saved a clean copy to Pictures/Safe to Post"
+                            if (uri != null) "Saved to Pictures/Safe to Post · removed $removed metadata fields, blurred $blurred face(s)"
                             else "Could not save the clean copy"
-                        )
+                        ),
+                        lastExport = uri
                     )
                 }
             } catch (t: Throwable) {

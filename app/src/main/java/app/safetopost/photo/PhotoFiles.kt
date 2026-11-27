@@ -49,7 +49,7 @@ object PhotoFiles {
                 val original = MediaStore.setRequireOriginal(uri)
                 resolver.openInputStream(original)?.let { return it }
             } catch (t: Throwable) {
-                // No permission or not a MediaStore URI: use the shared copy.
+                // No permission or a picker URI that does not support originals: use the shared copy.
             }
         }
         return resolver.openInputStream(uri) ?: error("Could not open the selected photo")

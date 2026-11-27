@@ -1,5 +1,6 @@
 package app.safetopost
 
+import android.net.Uri
 import app.safetopost.model.CaptionFinding
 import app.safetopost.model.FaceRegion
 import app.safetopost.model.PhotoMetadata
@@ -18,5 +19,6 @@ data class ScanState(
     val caption: String = "",
     val findings: List<CaptionFinding> = emptyList(),
     val score: RiskScore = RiskScore(),
-    val message: UiMessage? = null
+    val message: UiMessage? = null,
+    val lastExport: Uri? = null
 )

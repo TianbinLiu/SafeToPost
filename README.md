@@ -4,7 +4,9 @@ An Android app that checks a photo before you post it — and helps you remove w
 
 Built as an optional demo for our CSCI 180 Computer Security group project, *Behind the Default Settings: How Social Networks Collect, Track, and Expose User Data*. Everything runs on the phone: no account, no upload step for the analysis.
 
-> **Status:** v0.1.0 debug build, source included. Android 10 or newer. Not on Google Play.
+> **Status:** v0.2.0 debug build, source included. Android 10 or newer. Not on Google Play.
+>
+> **New in 0.2.0:** redesigned interface (verdict card with score ring, grouped evidence, sticky export bar), share-sheet intake (`Share → Safe to Post`), and a share action for the cleaned copy.
 
 ## What it does
 
@@ -19,11 +21,11 @@ Scans the caption text for leak categories (phone numbers, e-mail, street addres
 
 ## Install (test build)
 
-1. On an Android phone (Android 10 / API 29 or newer), open the APK from the [Releases](../../releases) page — the rebuilt build is `v0.1.0-rebuild`.
+1. On an Android phone (Android 10 / API 29 or newer), open the APK from the [Releases](../../releases) page — the current build is `v0.2.0`.
 2. Allow install from the browser when Android asks.
 3. Play Protect may warn first — that is expected for a debug build that is not distributed through Play.
 
-The app asks for `ACCESS_MEDIA_LOCATION` on first launch. Android's photo picker hands apps a copy with location metadata redacted unless that permission is granted; with it, the app requests the original bytes (`MediaStore.setRequireOriginal`) so the GPS check is meaningful. If you deny it, everything else still works and GPS simply shows as absent.
+The app asks for `ACCESS_MEDIA_LOCATION` on first launch, and appears in the system share sheet for images. Android's photo picker hands apps a copy with location metadata redacted unless that permission is granted; with it, the app requests the original bytes (`MediaStore.setRequireOriginal`) so the GPS check is meaningful. If you deny it, everything else still works and GPS simply shows as absent.
 
 ## Build from source
 
@@ -59,7 +61,7 @@ caption text ──► CaptionScanner ──► CaptionFinding ─────�
 | `ui` | Jetpack Compose screen: preview + face overlay, score header, metadata list, caption highlighting, theme |
 | `ScanViewModel` | Holds `ScanState`, runs the pipeline off the main thread, guards export with a busy flag |
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map and [docs/PRIVACY.md](docs/PRIVACY.md) for the data-flow notes.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map, [docs/PRIVACY.md](docs/PRIVACY.md) for the data-flow notes, and [docs/MARKET_ANALYSIS.md](docs/MARKET_ANALYSIS.md) for the competitor check and follow-up opportunities.
 
 ## Tech
 
@@ -75,6 +77,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map and [docs/PR
 - `docs/ARCHITECTURE.md` — module map and pipeline
 - `docs/PRIVACY.md` — data-flow and permission notes
 - `docs/CODE_DOCUMENTATION.md` — full code documentation (project description, per-module implementation notes, build/run/reproduction steps, limitations)
+- `docs/MARKET_ANALYSIS.md` — comparable products and where this app can go next
 - `docs/` PDF/DOCX are distributed with the course submission
 - Releases — `v0.1.0` (original test build) and `v0.1.0-rebuild` (this source tree)
 

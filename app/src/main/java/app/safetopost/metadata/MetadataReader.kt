@@ -29,7 +29,7 @@ class MetadataReader(private val context: Context) {
                         spec.tag == ExifInterface.TAG_GPS_LONGITUDE
                     ) continue
 
-                    val raw = exif.getAttribute(spec.tag) ?: continue
+                    val raw = exif.getAttribute(spec.tag)?.takeIf { it.isNotBlank() } ?: continue
                     entries += MetadataEntry(
                         tag = spec.tag,
                         label = spec.label,

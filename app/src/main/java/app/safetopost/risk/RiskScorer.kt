@@ -13,6 +13,16 @@ import app.safetopost.model.RiskSource
 /** Combines metadata entries and caption findings into one explained score. */
 object RiskScorer {
 
+    fun captionWeight(kind: CaptionKind): Int = when (kind) {
+        CaptionKind.PHONE -> 25
+        CaptionKind.ADDRESS -> 25
+        CaptionKind.EMAIL -> 15
+        CaptionKind.SCHOOL_OR_WORK -> 10
+        CaptionKind.DATE -> 6
+        CaptionKind.HANDLE -> 6
+        CaptionKind.LINK -> 4
+    }
+
     fun score(metadata: PhotoMetadata, findings: List<CaptionFinding>): RiskScore {
         val factors = mutableListOf<RiskFactor>()
 
@@ -30,15 +40,7 @@ object RiskScorer {
         }
 
         for (finding in findings) {
-            val weight = when (finding.kind) {
-                CaptionKind.PHONE -> 25
-                CaptionKind.ADDRESS -> 25
-                CaptionKind.EMAIL -> 15
-                CaptionKind.SCHOOL_OR_WORK -> 10
-                CaptionKind.DATE -> 6
-                CaptionKind.HANDLE -> 6
-                CaptionKind.LINK -> 4
-            }
+            val weight = captionWeight(finding.kind)
             factors += RiskFactor(
                 source = RiskSource.CAPTION,
                 weight = weight,
