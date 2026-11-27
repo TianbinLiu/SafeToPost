@@ -96,7 +96,7 @@ selected faces ──► FaceBlur ──► MetadataStripper (re-encode) ──�
 | [PRIVACY.md](docs/PRIVACY.md) | Data-flow and permission notes |
 | [MARKET_ANALYSIS.md](docs/MARKET_ANALYSIS.md) | Comparable products and follow-up opportunities |
 | [IME_FEASIBILITY.md](docs/IME_FEASIBILITY.md) | What a keyboard can and cannot check, and the prototype in this repo |
-| [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | 15-minute presentation script + live demo steps + fallbacks |
+| [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | 15-minute presentation script, video slide steps, fallbacks |
 | [DEFENSE_NOTES.md](docs/DEFENSE_NOTES.md) | Anticipated questions with short answers and key numbers |
 | [SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md) | What to submit, where it lives, and the pre-class checks |
 

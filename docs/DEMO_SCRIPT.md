@@ -3,10 +3,11 @@
 **Project:** Behind the Default Settings: How Social Networks Collect, Track, and Expose User Data
 **App:** Safe to Post v0.9.0
 **Speakers:** Connor Toreson (platform collection) · Jason Zhou (trackers) · Tianbin Liu (defaults + implementation)
-**Deck:** 22 slides (Google Slides, group folder). Slide numbers below refer to that deck.
+**Deck:** 23 slides (Google Slides, group folder) — slide 19 is the new video slide. Slide numbers below refer to that deck.
 
 > 中文提示：这是一份可以直接照着讲的稿子。英文句子是台上说的，括号里的中文是给你的操作提示。
-> 演示的核心只有 60–75 秒：分数 + GPS → Clean caption → 键盘提示 → 回到 app。其余功能用截图/一句话带过。
+> 演示的核心是一段 50 秒的视频（slide 19 的海报，点开即播）。台上的动作只有：点海报 → 播放 → 关标签页。
+> 视频里的顺序：分数/GPS → caption 清理 → 人脸 → 批量 → 键盘。
 
 ---
 
@@ -19,10 +20,10 @@
 | 1:15–2:15 | 3 | Tianbin | Why defaults matter (37 %, 2005, FTC) |
 | 2:15–5:15 | 4–12 | Connor | What platforms collect |
 | 5:15–8:15 | 13–14 | Jason | Who else is watching (trackers) |
-| 8:15–13:30 | 15–20 | Tianbin | Method → finding → cross-platform → why/fix **+ demo** |
-| 13:30–14:15 | 19 | Tianbin | Defensive rules / regulation |
-| 14:15–14:45 | 20 | Tianbin | Conclusion |
-| 14:45–15:00 | 21 | All | Q&A handoff |
+| 8:15–13:35 | 15–19 | Tianbin | Method → finding → cross-platform → why/fix **+ video** |
+| 13:35–14:20 | 20 | Tianbin | Defensive rules / regulation |
+| 14:20–14:50 | 21 | Tianbin | Conclusion |
+| 14:50–15:00 | 22 | All | Q&A handoff |
 
 Within Tianbin's 5:15:
 
@@ -32,9 +33,32 @@ Within Tianbin's 5:15:
 | 9:15–10:45 | 16 | Finding + audit table |
 | 10:45–11:45 | 17 | Cross-platform: TikTok / X / Facebook |
 | 11:45–12:45 | 18 | Why it is hard + 10-minute checklist |
-| 12:45–13:30 | 18 | **Live demo (45 s)** + close of section |
+| 12:45–13:35 | 19 | **Video (0:50)** + one line of interpretation |
 
-If the talk is running late, demo only the caption-clean (20 s) and skip the keyboard.
+If the talk is running late, play the first 30 seconds (metadata + caption) and skip the rest.
+
+---
+
+## 0. The video slide (as built)
+
+Slide 19 is a poster (the first frame of the video) linked to the 50-second MP4 in the group folder.
+
+1. At 12:45, advance to slide 19.
+2. Click the poster once. A Drive tab opens with the video.
+3. Press play. The video is silent by design; keep talking over it or let it run.
+4. Close the tab and return to the deck (slide 19 stays in place).
+5. Say: “That is the whole flow: file, caption, faces, batch, keyboard — all on the phone.”
+
+**Files**
+
+- `SafeToPost_Demo.mp4` — 1920 × 1080, 50 s, H.264, in the CSCI 180 group folder and on the
+  presentation laptop (Downloads).
+- Poster: `docs/images/demo-poster.png` (repo) / the image on slide 19.
+- If the Drive link asks for access, you are not signed in as `tliu7@scu.edu`; open the local MP4
+  instead (double-click, play, then return to the deck).
+
+**Timing:** the video is 50 s, which leaves ~45 s in the 5:15 section for the “why it is hard”
+transition and the checklist line. Do not talk over the whole video; let the interface carry it.
 
 ---
 
