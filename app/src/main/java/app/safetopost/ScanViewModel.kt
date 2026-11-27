@@ -70,6 +70,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setBatchBlurFaces(enabled: Boolean) {
+        _batch.update { it.copy(blurFaces = enabled) }
+    }
+
     fun toggleBatchItem(index: Int) {
         _batch.update { state ->
             state.copy(
@@ -129,8 +133,20 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun cleanItem(item: BatchItem): Boolean {
         return try {
             val photo = withContext(Dispatchers.IO) { PhotoFiles.load(getApplication(), item.uri) }
-            val bytes = withContext(Dispatchers.Default) { MetadataStripper.strip(photo.bitmap) }
-            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return false
+            val output = withContext(Dispatchers.Default) {
+                val source = if (_batch.value.blurFaces) {
+                    val faces = faceFinder.detect(photo.bitmap)
+                    if (faces.isEmpty()) {
+                        photo.bitmap
+                    } else {
+                        FaceBlur.apply(photo.bitmap, faces.map { it.copy(selected = true) })
+                    }
+                } else {
+                    photo.bitmap
+                }
+                MetadataStripper.strip(source)
+            }
+            val bitmap = BitmapFactory.decodeByteArray(output, 0, output.size) ?: return false
             withContext(Dispatchers.IO) { GalleryExport.save(getApplication(), bitmap, photo.name) } != null
         } catch (t: Throwable) {
             false

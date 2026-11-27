@@ -4,7 +4,9 @@ An Android app that checks a photo before you post it — and helps you remove w
 
 Built as an optional demo for our CSCI 180 Computer Security group project, *Behind the Default Settings: How Social Networks Collect, Track, and Expose User Data*. Everything runs on the phone: no account, no upload step for the analysis.
 
-> **Status:** v0.8.0 debug build, source included. Android 10 or newer. Not on Google Play.
+> **Status:** v0.9.0 debug build, source included. Android 10 or newer. Not on Google Play.
+>
+> **New in 0.9.0:** batch "Blur all faces" switch. When enabled, each photo is run through ML Kit face detection and every detected face is mosaicked before the metadata-stripped export; photos without faces are exported unchanged.
 >
 > **New in 0.8.0:** batch rows now show a thumbnail, can be unchecked to skip, and each row has its own Clean action. "Clean N selected" only processes the checked photos.
 >

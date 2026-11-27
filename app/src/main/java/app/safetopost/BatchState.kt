@@ -23,5 +23,6 @@ data class BatchState(
     val items: List<BatchItem> = emptyList(),
     val progress: Int = 0,
     val total: Int = 0,
-    val message: String? = null
+    val message: String? = null,
+    val blurFaces: Boolean = false
 )

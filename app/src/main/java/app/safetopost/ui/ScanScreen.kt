@@ -176,6 +176,7 @@ fun ScanScreen(
                 batch = batch,
                 onToggle = viewModel::toggleBatchItem,
                 onCleanOne = viewModel::cleanBatchItem,
+                onToggleBlur = viewModel::setBatchBlurFaces,
                 onClean = viewModel::cleanBatch,
                 onClose = viewModel::clearBatch
             )
