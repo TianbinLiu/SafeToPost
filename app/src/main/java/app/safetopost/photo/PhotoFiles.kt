@@ -21,6 +21,16 @@ object PhotoFiles {
 
     fun displayName(context: Context, uri: Uri): String? = queryName(context, uri)
 
+    fun thumbnail(context: Context, uri: Uri, maxSize: Int = 160): Bitmap? {
+        val bytes = bytes(context, uri)
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        var sample = 1
+        while (bounds.outWidth / sample > maxSize || bounds.outHeight / sample > maxSize) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+    }
+
     fun load(context: Context, uri: Uri): LoadedPhoto {
         val resolver = context.contentResolver
         val bytes = bytes(context, uri)

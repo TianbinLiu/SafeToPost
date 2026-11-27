@@ -174,6 +174,8 @@ fun ScanScreen(
             BatchScreen(
                 modifier = Modifier.padding(padding),
                 batch = batch,
+                onToggle = viewModel::toggleBatchItem,
+                onCleanOne = viewModel::cleanBatchItem,
                 onClean = viewModel::cleanBatch,
                 onClose = viewModel::clearBatch
             )

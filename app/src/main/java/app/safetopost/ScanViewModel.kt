@@ -55,7 +55,12 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     val segments = JpegInspector.inspect(bytes)
                     val metadata = metadataReader.read(bytes, segments)
                     val score = RiskScorer.score(metadata, emptyList())
-                    items += BatchItem(index, uri, name, metadata, score)
+                    val thumbnail = runCatching {
+                        withContext(Dispatchers.IO) {
+                            PhotoFiles.thumbnail(getApplication(), uri)
+                        }
+                    }.getOrNull()
+                    items += BatchItem(index, uri, name, metadata, score, thumbnail = thumbnail)
                 } catch (t: Throwable) {
                     // Skip a photo that cannot be read; the rest of the batch continues.
                 }
@@ -65,49 +70,70 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun toggleBatchItem(index: Int) {
+        _batch.update { state ->
+            state.copy(
+                items = state.items.map { item ->
+                    if (item.index == index && !item.cleaned) item.copy(selected = !item.selected) else item
+                }
+            )
+        }
+    }
+
     fun cleanBatch() {
         val current = _batch.value
-        if (current.items.isEmpty() || current.phase != BatchPhase.READY) return
+        val targets = current.items.filter { it.selected && !it.cleaned }
+        if (targets.isEmpty() || current.phase != BatchPhase.READY) return
         if (!batchBusy.compareAndSet(false, true)) return
         viewModelScope.launch {
-            _batch.update { it.copy(phase = BatchPhase.EXPORTING, progress = 0) }
+            _batch.update { it.copy(phase = BatchPhase.EXPORTING, progress = 0, total = targets.size) }
             var cleaned = 0
-            current.items.forEachIndexed { index, item ->
-                try {
-                    val photo = withContext(Dispatchers.IO) {
-                        PhotoFiles.load(getApplication(), item.uri)
-                    }
-                    val bytes = withContext(Dispatchers.Default) {
-                        MetadataStripper.strip(photo.bitmap)
-                    }
-                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    val saved = withContext(Dispatchers.IO) {
-                        GalleryExport.save(getApplication(), bitmap, photo.name)
-                    }
-                    if (saved != null) {
-                        cleaned++
-                        _batch.update { state ->
-                            state.copy(
-                                items = state.items.map {
-                                    if (it.index == item.index) it.copy(cleaned = true) else it
-                                },
-                                progress = index + 1
-                            )
-                        }
-                    }
-                } catch (t: Throwable) {
-                    // Leave this item marked as not cleaned.
+            targets.forEachIndexed { position, item ->
+                if (cleanItem(item)) {
+                    cleaned++
+                    markCleaned(item.index)
                 }
+                _batch.update { it.copy(progress = position + 1) }
             }
             _batch.update { it.copy(phase = BatchPhase.READY) }
             _state.update {
-                it.copy(
-                    message = UiMessage(
-                        "Batch cleaned: $cleaned of ${current.items.size} photos saved to Pictures/Safe to Post"
-                    )
-                )
+                it.copy(message = UiMessage("Batch cleaned: $cleaned of ${targets.size} selected photos"))
             }
             batchBusy.set(false)
+        }
+    }
+
+    fun cleanBatchItem(index: Int) {
+        val current = _batch.value
+        val item = current.items.firstOrNull { it.index == index } ?: return
+        if (item.cleaned || current.phase != BatchPhase.READY) return
+        if (!batchBusy.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            _batch.update { it.copy(phase = BatchPhase.EXPORTING, progress = 0, total = 1) }
+            val ok = cleanItem(item)
+            if (ok) markCleaned(item.index)
+            _batch.update { it.copy(phase = BatchPhase.READY) }
+            _state.update {
+                it.copy(message = UiMessage(if (ok) "Cleaned ${item.name}" else "Could not clean ${item.name}"))
+            }
+            batchBusy.set(false)
+        }
+    }
+
+    private fun markCleaned(index: Int) {
+        _batch.update { state ->
+            state.copy(items = state.items.map { if (it.index == index) it.copy(cleaned = true) else it })
+        }
+    }
+
+    private suspend fun cleanItem(item: BatchItem): Boolean {
+        return try {
+            val photo = withContext(Dispatchers.IO) { PhotoFiles.load(getApplication(), item.uri) }
+            val bytes = withContext(Dispatchers.Default) { MetadataStripper.strip(photo.bitmap) }
+            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return false
+            withContext(Dispatchers.IO) { GalleryExport.save(getApplication(), bitmap, photo.name) } != null
+        } catch (t: Throwable) {
+            false
         }
     }
 

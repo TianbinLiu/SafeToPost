@@ -4,7 +4,9 @@ An Android app that checks a photo before you post it — and helps you remove w
 
 Built as an optional demo for our CSCI 180 Computer Security group project, *Behind the Default Settings: How Social Networks Collect, Track, and Expose User Data*. Everything runs on the phone: no account, no upload step for the analysis.
 
-> **Status:** v0.7.0 debug build, source included. Android 10 or newer. Not on Google Play.
+> **Status:** v0.8.0 debug build, source included. Android 10 or newer. Not on Google Play.
+>
+> **New in 0.8.0:** batch rows now show a thumbnail, can be unchecked to skip, and each row has its own Clean action. "Clean N selected" only processes the checked photos.
 >
 > **New in 0.7.0:** keyboard undo. After Clean (or any typing), the strip shows Undo, which restores the previous field text from an in-memory stack of up to 30 snapshots.
 >

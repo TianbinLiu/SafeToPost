@@ -1,5 +1,6 @@
 package app.safetopost
 
+import android.graphics.Bitmap
 import android.net.Uri
 import app.safetopost.model.PhotoMetadata
 import app.safetopost.model.RiskScore
@@ -12,6 +13,8 @@ data class BatchItem(
     val name: String,
     val metadata: PhotoMetadata,
     val score: RiskScore,
+    val thumbnail: Bitmap? = null,
+    val selected: Boolean = true,
     val cleaned: Boolean = false
 )
 

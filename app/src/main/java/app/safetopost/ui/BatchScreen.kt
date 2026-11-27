@@ -1,6 +1,7 @@
 package app.safetopost.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,10 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +30,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.safetopost.BatchItem
@@ -38,9 +43,12 @@ import app.safetopost.BatchState
 fun BatchScreen(
     modifier: Modifier,
     batch: BatchState,
+    onToggle: (Int) -> Unit,
+    onCleanOne: (Int) -> Unit,
     onClean: () -> Unit,
     onClose: () -> Unit
 ) {
+    val targets = batch.items.count { it.selected && !it.cleaned }
     Column(
         modifier
             .fillMaxSize()
@@ -55,7 +63,7 @@ fun BatchScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    "${batch.items.size} photos · metadata removed for each one",
+                    "${batch.items.size} photos · uncheck to skip",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -87,25 +95,29 @@ fun BatchScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(batch.items) { item ->
-                BatchRow(item)
+                BatchRow(
+                    item = item,
+                    onToggle = { onToggle(item.index) },
+                    onCleanOne = { onCleanOne(item.index) }
+                )
             }
         }
 
         Button(
             onClick = onClean,
-            enabled = batch.phase == BatchPhase.READY && batch.items.isNotEmpty(),
+            enabled = batch.phase == BatchPhase.READY && targets > 0,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
             shape = MaterialTheme.shapes.medium
         ) {
             Text(
-                "Clean all ${batch.items.size}",
+                "Clean $targets selected",
                 style = MaterialTheme.typography.labelLarge
             )
         }
         Text(
-            "Each export is a new file; the originals are untouched. Face selection stays in single-photo mode.",
+            "Each export is a new file; originals are untouched. Face selection stays in single-photo mode.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -113,7 +125,7 @@ fun BatchScreen(
 }
 
 @Composable
-private fun BatchRow(item: BatchItem) {
+private fun BatchRow(item: BatchItem, onToggle: () -> Unit, onCleanOne: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
@@ -121,22 +133,41 @@ private fun BatchRow(item: BatchItem) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 Modifier
-                    .size(28.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "${item.index + 1}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                val thumb = item.thumbnail
+                if (thumb != null) {
+                    Image(
+                        bitmap = thumb.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        "${item.index + 1}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (item.cleaned) {
+                Spacer(Modifier.width(10.dp))
+            } else {
+                Checkbox(
+                    checked = item.selected,
+                    onCheckedChange = { onToggle() },
+                    modifier = Modifier.size(40.dp)
                 )
             }
-            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     item.name,
@@ -146,24 +177,36 @@ private fun BatchRow(item: BatchItem) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    "${item.metadata.entries.size} metadata fields",
+                    "${item.metadata.entries.size} fields",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(
-                "${item.score.total}",
-                style = MaterialTheme.typography.titleMedium,
-                color = riskColor(item.score.level)
-            )
-            if (item.cleaned) {
-                Spacer(Modifier.width(8.dp))
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Cleaned",
-                    tint = LowRisk,
-                    modifier = Modifier.size(18.dp)
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "${item.score.total}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = riskColor(item.score.level)
                 )
+                if (item.cleaned) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Cleaned",
+                        tint = LowRisk,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    TextButton(
+                        onClick = onCleanOne,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)
+                    ) {
+                        Text(
+                            "Clean",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
         }
     }
